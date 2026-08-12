@@ -25,3 +25,4 @@ The following files were created and configured to implement the client-server a
 | [compile.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/compile.bat) | Batch compile script downloading the PostgreSQL driver and compiling sources. |
 | [run_server.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/run_server.bat) | Execution script to start the Booking Server. |
 | [run_client.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/run_client.bat) | Execution script to run the Booking Client CLI. |
+| [README.md](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/README.md) | Setup and run manual detailing compile and run commands for both Windows and Linux Ubuntu. |
