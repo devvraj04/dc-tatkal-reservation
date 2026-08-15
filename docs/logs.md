@@ -80,3 +80,58 @@ To combine the user's existing database design with the distributed booking appl
 - **IPv4 Connection Pooler Integration & preparedThreshold Fix**: Resolved the direct connection RMI thread timeout issue by switching from the direct IPv6-only hostname `db.tigpgunzlteutfykaeqd.supabase.co` to the Supabase IPv4 connection pooler `aws-0-ap-south-1.pooler.supabase.com` on port `6543`. Additionally, added the `prepareThreshold=0` parameter to the JDBC connection string to disable server-side prepared statements, avoiding PgBouncer transaction-mode conflicts (`prepared statement "S_1" already exists`).
 - **Setup Manuals**: Created [README.md](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/README.md) compiling detailed, step-by-step compilation, configuration, execution, and distributed network testing commands for both Windows batch environments and Linux Ubuntu command-line terminals.
 
+---
+
+## Experiment 2: Multithreading & Database Concurrency Control
+**Date:** 2026-08-15
+
+### 1. Server-Side Multithreading Architecture (`ThreadPoolExecutor`)
+In high-concurrency reservation scenarios, serial execution of incoming client requests leads to extreme latency bottlenecks.
+- **Thread Pool Design**:
+  - `corePoolSize`: 8 threads
+  - `maximumPoolSize`: 32 threads
+  - `keepAliveTime`: 60 seconds
+  - `workQueue`: `ArrayBlockingQueue<Runnable>(100)` (bounded to prevent out-of-memory errors under sudden traffic spikes)
+  - `rejectionHandler`: `CallerRunsPolicy` to gracefully slow down callers without dropping requests.
+- **RMI Integration**:
+  - The remote procedure `bookTatkalTicket` wraps booking transactions in a `Callable<BookingResult>` and submits it to `bookingExecutor`.
+  - Future completion is awaited via `future.get()`, and all exceptions (`InterruptedException`, `ExecutionException`, `RejectedExecutionException`) are properly unwrapped and re-thrown as `RemoteException` without swallowing.
+  - Server thread names (`[pool-1-thread-03]`) are logged for all stage transitions (request receipt, seat allocation, and commit/rollback).
+  - A JVM shutdown hook is registered to call `executor.shutdown()` and `awaitTermination(5, TimeUnit.SECONDS)`.
+
+---
+
+### 2. PostgreSQL Non-Blocking Pessimistic Locking (`FOR UPDATE SKIP LOCKED`)
+Java synchronized blocks (`public synchronized BookingResult...`) fail in distributed multi-node environments because JVM locks cannot synchronize across separate processes or machines. The database remains the authoritative single source of truth.
+- **Query Optimization**:
+  ```sql
+  SELECT sa.allocation_id, sa.seat_id, s.seat_number, c.coach_number, s.berth_type
+  FROM seat_allocations sa
+  JOIN seats s ON sa.seat_id = s.seat_id
+  JOIN coaches c ON s.coach_id = c.coach_id
+  WHERE sa.schedule_id = ?
+    AND c.coach_type = CAST(? AS coach_type_enum)
+    AND sa.booking_status = 'AVAILABLE'
+  ORDER BY s.seat_number
+  LIMIT ?
+  FOR UPDATE SKIP LOCKED;
+  ```
+- **Why `SKIP LOCKED` is Critical**:
+  - Standard `FOR UPDATE` causes concurrent transactions seeking available seats to block and wait on locked rows, producing lock-wait timeouts and row contention deadlocks.
+  - `FOR UPDATE SKIP LOCKED` instructs PostgreSQL to instantly bypass any rows currently locked by another active transaction. Threads immediately lock remaining available seats or discover that 0 seats remain, transitioning smoothly to waitlisting or returning without blocking contention delays.
+
+---
+
+### 3. Barrier Synchronization Test Harness (`CountDownLatch`)
+To simulate realistic "Tatkal Opening" race conditions where many users click "Book" at the exact same millisecond:
+- **Test Harness (`TatkalConcurrencyTest.java`)**:
+  - Utilizes two `CountDownLatch` instances: `readyLatch` (count = N) and `startLatch` (count = 1).
+  - N worker threads signal `readyLatch.countDown()` and block on `startLatch.await()`.
+  - Once all N workers are ready, `startLatch.countDown()` releases all 20 threads simultaneously, creating an authentic concurrent race over RMI.
+- **Assertions & Edge-Case Validation**:
+  - Validates `total_requests == confirmed_bookings + waitlisted_bookings + failed_requests`.
+  - Asserts `unique_allocated_seats == total_confirmed_seats` across single/multi-passenger requests (`CONCURRENCY TEST PASSED`).
+- **Expanded Seed Dataset**:
+  - Population of 10 stations, 5 trains, 30 journey schedules (2026-08-15 to 2026-08-20), and dynamic seat generation (72-seat SL/3A coaches, 54-seat 2A coaches, 48-seat Chair Exec, 24-seat 1A) using PostgreSQL `generate_series`.
+  - Generates 1,000+ physical seats and 10,000+ date-specific `seat_allocations` to stress-test high concurrency and edge cases.
+

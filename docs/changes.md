@@ -26,3 +26,22 @@ The following files were created and configured to implement the client-server a
 | [run_server.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/run_server.bat) | Execution script to start the Booking Server. |
 | [run_client.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/run_client.bat) | Execution script to run the Booking Client CLI. |
 | [README.md](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/README.md) | Setup and run manual detailing compile and run commands for both Windows and Linux Ubuntu. |
+
+---
+
+## Experiment 2: Multithreading & Database Concurrency Control
+**Date:** 2026-08-15
+
+The following updates and files were created to implement server-side thread pooling (`ExecutorService`), PostgreSQL pessimistic concurrency control (`FOR UPDATE SKIP LOCKED`), and client-side barrier testing (`CountDownLatch`).
+
+| File Path | Description |
+|---|---|
+| [src/server/BookingServer.java](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/src/server/BookingServer.java) | Updated to rebind both `BookingService` and `TatkalService` in the RMI registry port 1099. |
+| [src/server/BookingServiceImpl.java](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/src/server/BookingServiceImpl.java) | Integrated server-side `ThreadPoolExecutor` (8 core, 32 max, 100 queue) with graceful rejection, shutdown hook, thread logging, and non-blocking PostgreSQL `FOR UPDATE OF sa SKIP LOCKED` seat allocation. Scoped lock target strictly to `seat_allocations` table (`OF sa`), preventing multi-table JOIN locking on `coaches` and `seats` that caused premature seat skips during high-concurrency bursts. |
+| [src/client/TatkalConcurrencyTest.java](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/src/client/TatkalConcurrencyTest.java) | Enhanced multithreaded client experiment harness supporting high-concurrency client runs (50+ clients), multi-passenger allocations, waitlist tracking, and seat uniqueness assertions. |
+| [src/com/tatkal/client/TatkalConcurrencyTest.java](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/src/com/tatkal/client/TatkalConcurrencyTest.java) | Package wrapper for `com.tatkal.client.TatkalConcurrencyTest` namespace compatibility. |
+| [src/client/UnsafeBookingDemo.java](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/src/client/UnsafeBookingDemo.java) | Conceptual demonstration highlighting double-booking hazards when database pessimistic locks are omitted. |
+| [schema/schema.sql](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/schema/schema.sql) | Expanded database schema with production-scale seed dataset (10 stations, 5 trains, 30 schedules, multi-coach compositions, and dynamic 1,000+ seat allocations via PostgreSQL `generate_series`). Fixed `berth_type_enum` type casts. |
+| [compile.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/compile.bat) | Updated compilation script to compile `src/com/tatkal/client/*.java`. |
+| [run_concurrency_test.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/run_concurrency_test.bat) | Execution script to run the concurrency test suite on Windows. |
+| [README.md](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/README.md) | Comprehensive project README containing About section, Experiment 1 (RPC/RMI), Experiment 2 (Multithreading & Database Concurrency), setup guides, execution commands, and repository structure overview. |

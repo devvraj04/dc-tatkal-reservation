@@ -22,11 +22,12 @@ public class BookingServer {
                 System.out.println("RMI: Found existing registry on port 1099.");
             }
 
-            // Bind the remote object
+            // Bind the remote object (bind under both BookingService and TatkalService for compatibility)
             BookingService bookingService = new BookingServiceImpl();
             registry.rebind("BookingService", bookingService);
+            registry.rebind("TatkalService", bookingService);
             
-            System.out.println("RMI: BookingService successfully bound to registry.");
+            System.out.println("RMI: BookingService & TatkalService successfully bound to registry.");
             System.out.println("Server is running. Press Ctrl+C to terminate...");
             System.out.println("==============================================");
             

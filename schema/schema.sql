@@ -678,19 +678,26 @@ CREATE INDEX idx_notifications_status ON notifications(delivery_status);
 
 
 -- ============================================================
--- 20. SEED DATA
+-- 20. SEED DATA (Comprehensive & Realistic Production-Scale Dataset)
 -- ============================================================
 
--- 1. Create a default User (password_hash is plaintext 'password123' for simplicity of the experiment demo)
+-- 1. Create Users
 INSERT INTO users (full_name, email, mobile_no, password_hash, account_status)
-VALUES ('Devraj', 'devraj@example.com', '9876543210', 'password123', 'ACTIVE');
+VALUES 
+('Devraj', 'devraj@example.com', '9876543210', 'password123', 'ACTIVE'),
+('Rahul Sharma', 'rahul@example.com', '9876543211', 'password123', 'ACTIVE'),
+('Priya Patel', 'priya@example.com', '9876543212', 'password123', 'ACTIVE'),
+('Suresh Kumar', 'suresh@example.com', '9876543213', 'password123', 'ACTIVE'),
+('Ananya Verma', 'ananya@example.com', '9876543214', 'password123', 'ACTIVE');
 
--- 2. Create saved Passengers for Devraj (user_id = 1)
+-- 2. Create saved Passengers
 INSERT INTO passengers (user_id, passenger_name, age, gender, berth_preference, id_proof_type, id_proof_number)
 VALUES 
 (1, 'Devraj', 21, 'MALE', 'LOWER', 'AADHAAR', '1234-5678-9012'),
 (1, 'Amit Sharma', 45, 'MALE', 'UPPER', 'PAN', 'ABCDE1234F'),
-(1, 'Rita Sharma', 40, 'FEMALE', 'LOWER', 'PASSPORT', 'L1234567');
+(1, 'Rita Sharma', 40, 'FEMALE', 'LOWER', 'PASSPORT', 'L1234567'),
+(2, 'Rahul Sharma', 30, 'MALE', 'SIDE_LOWER', 'AADHAAR', '9876-5432-1098'),
+(3, 'Priya Patel', 28, 'FEMALE', 'SIDE_UPPER', 'VOTER_ID', 'XYZ1234567');
 
 -- 3. Create Stations
 INSERT INTO stations (station_code, station_name, city, state, railway_zone)
@@ -698,69 +705,135 @@ VALUES
 ('CSMT', 'Chhatrapati Shivaji Maharaj Terminus', 'Mumbai', 'Maharashtra', 'Central Railway'),
 ('BRC', 'Vadodara Junction', 'Vadodara', 'Gujarat', 'Western Railway'),
 ('KOTA', 'Kota Junction', 'Kota', 'Rajasthan', 'West Central Railway'),
-('NDLS', 'New Delhi Railway Station', 'New Delhi', 'Delhi', 'Northern Railway');
+('NDLS', 'New Delhi Railway Station', 'New Delhi', 'Delhi', 'Northern Railway'),
+('HWH', 'Howrah Junction', 'Kolkata', 'West Bengal', 'Eastern Railway'),
+('SBC', 'KSR Bengaluru City Junction', 'Bengaluru', 'Karnataka', 'South Western Railway'),
+('MAS', 'MGR Chennai Central', 'Chennai', 'Tamil Nadu', 'Southern Railway'),
+('ADI', 'Ahmedabad Junction', 'Ahmedabad', 'Gujarat', 'Western Railway'),
+('PUNE', 'Pune Junction', 'Pune', 'Maharashtra', 'Central Railway'),
+('BPL', 'Bhopal Junction', 'Bhopal', 'Madhya Pradesh', 'West Central Railway');
 
--- 4. Create a Train (Rajdhani Express 12951)
+-- 4. Create Trains
 INSERT INTO trains (train_no, train_name, train_type, source_station_code, destination_station_code, total_distance, running_days, train_status)
-VALUES (12951, 'Mumbai-New Delhi Rajdhani Express', 'RAJDHANI', 'CSMT', 'NDLS', 1386, 'MON,TUE,WED,THU,FRI,SAT,SUN', 'ACTIVE');
+VALUES 
+(12951, 'Mumbai-New Delhi Rajdhani Express', 'RAJDHANI', 'CSMT', 'NDLS', 1386, 'MON,TUE,WED,THU,FRI,SAT,SUN', 'ACTIVE'),
+(12002, 'New Delhi-Bhopal Shatabdi Express', 'SHATABDI', 'NDLS', 'BPL', 707, 'MON,TUE,WED,THU,FRI,SAT,SUN', 'ACTIVE'),
+(12301, 'Howrah-New Delhi Rajdhani Express', 'RAJDHANI', 'HWH', 'NDLS', 1447, 'MON,TUE,WED,THU,FRI,SAT,SUN', 'ACTIVE'),
+(22691, 'KSR Bengaluru-Hazrat Nizamuddin Rajdhani', 'RAJDHANI', 'SBC', 'NDLS', 2365, 'MON,TUE,WED,THU,FRI,SAT,SUN', 'ACTIVE'),
+(12123, 'Mumbai-Pune Deccan Queen Express', 'SUPERFAST', 'CSMT', 'PUNE', 192, 'MON,TUE,WED,THU,FRI,SAT,SUN', 'ACTIVE');
 
--- 5. Create Routes for Train 12951
+-- 5. Create Routes for Trains
 INSERT INTO routes (train_no, station_code, stop_number, arrival_time, departure_time, day_number, platform_number)
 VALUES 
+-- Train 12951
 (12951, 'CSMT', 1, NULL, '17:00:00', 1, '18'),
 (12951, 'BRC', 2, '22:30:00', '22:40:00', 1, '2'),
 (12951, 'KOTA', 3, '03:15:00', '03:20:00', 2, '1'),
-(12951, 'NDLS', 4, '08:30:00', NULL, 2, '3');
+(12951, 'NDLS', 4, '08:30:00', NULL, 2, '3'),
+-- Train 12002
+(12002, 'NDLS', 1, NULL, '06:00:00', 1, '1'),
+(12002, 'KOTA', 2, '10:15:00', '10:20:00', 1, '2'),
+(12002, 'BPL', 3, '14:05:00', NULL, 1, '1'),
+-- Train 12301
+(12301, 'HWH', 1, NULL, '16:50:00', 1, '9'),
+(12301, 'NDLS', 2, '10:05:00', NULL, 2, '16'),
+-- Train 22691
+(22691, 'SBC', 1, NULL, '20:00:00', 1, '8'),
+(22691, 'NDLS', 2, '05:30:00', NULL, 3, '5'),
+-- Train 12123
+(12123, 'CSMT', 1, NULL, '17:10:00', 1, '8'),
+(12123, 'PUNE', 2, '20:25:00', NULL, 1, '1');
 
--- 6. Create TrainSchedules (Train running on 2026-08-15 and 2026-08-16)
+-- 6. Create TrainSchedules (Train running across multiple dates 2026-08-15 to 2026-08-20)
 INSERT INTO train_schedules (train_no, journey_date, departure_datetime, arrival_datetime, schedule_status)
 VALUES 
-(12951, '2026-08-15', '2026-08-15 17:00:00', '2026-08-16 08:30:00', 'SCHEDULED'),
-(12951, '2026-08-16', '2026-08-16 17:00:00', '2026-08-17 08:30:00', 'SCHEDULED');
+(12951, '2026-08-15', '2026-08-15 17:00:00', '2026-08-16 08:30:00', 'SCHEDULED'), -- schedule_id = 1
+(12951, '2026-08-16', '2026-08-16 17:00:00', '2026-08-17 08:30:00', 'SCHEDULED'), -- schedule_id = 2
+(12951, '2026-08-17', '2026-08-17 17:00:00', '2026-08-18 08:30:00', 'SCHEDULED'),
+(12002, '2026-08-15', '2026-08-15 06:00:00', '2026-08-15 14:05:00', 'SCHEDULED'),
+(12002, '2026-08-16', '2026-08-16 06:00:00', '2026-08-16 14:05:00', 'SCHEDULED'),
+(12301, '2026-08-15', '2026-08-15 16:50:00', '2026-08-16 10:05:00', 'SCHEDULED'),
+(22691, '2026-08-15', '2026-08-15 20:00:00', '2026-08-17 05:30:00', 'SCHEDULED'),
+(12123, '2026-08-15', '2026-08-15 17:10:00', '2026-08-15 20:25:00', 'SCHEDULED');
 
--- 7. Create Coaches for Train 12951
--- Let's keep it small for easy verification (6 seats per coach type)
+-- 7. Create Coaches for Trains (Multiple composition coaches per train)
 INSERT INTO coaches (train_no, coach_number, coach_type, total_seats, coach_status)
 VALUES 
-(12951, 'A1', '2A', 6, 'ACTIVE'),
-(12951, 'B1', '3A', 6, 'ACTIVE'),
-(12951, 'S1', 'SL', 6, 'ACTIVE');
+-- Train 12951 (Rajdhani)
+(12951, 'S1', 'SL', 72, 'ACTIVE'),
+(12951, 'S2', 'SL', 72, 'ACTIVE'),
+(12951, 'B1', '3A', 72, 'ACTIVE'),
+(12951, 'B2', '3A', 72, 'ACTIVE'),
+(12951, 'A1', '2A', 54, 'ACTIVE'),
+(12951, 'H1', '1A', 24, 'ACTIVE'),
 
--- 8. Create Seats for A1, B1, and S1 (6 seats each)
--- Coach A1 (2A)
-INSERT INTO seats (coach_id, seat_number, berth_type) VALUES 
-((SELECT coach_id FROM coaches WHERE coach_number='A1'), 1, 'LOWER'),
-((SELECT coach_id FROM coaches WHERE coach_number='A1'), 2, 'UPPER'),
-((SELECT coach_id FROM coaches WHERE coach_number='A1'), 3, 'SIDE_LOWER'),
-((SELECT coach_id FROM coaches WHERE coach_number='A1'), 4, 'SIDE_UPPER'),
-((SELECT coach_id FROM coaches WHERE coach_number='A1'), 5, 'LOWER'),
-((SELECT coach_id FROM coaches WHERE coach_number='A1'), 6, 'UPPER');
+-- Train 12002 (Shatabdi)
+(12002, 'C1', '3A', 72, 'ACTIVE'),
+(12002, 'C2', '3A', 72, 'ACTIVE'),
+(12002, 'E1', '1A', 48, 'ACTIVE'),
 
--- Coach B1 (3A)
-INSERT INTO seats (coach_id, seat_number, berth_type) VALUES 
-((SELECT coach_id FROM coaches WHERE coach_number='B1'), 1, 'LOWER'),
-((SELECT coach_id FROM coaches WHERE coach_number='B1'), 2, 'MIDDLE'),
-((SELECT coach_id FROM coaches WHERE coach_number='B1'), 3, 'UPPER'),
-((SELECT coach_id FROM coaches WHERE coach_number='B1'), 4, 'SIDE_LOWER'),
-((SELECT coach_id FROM coaches WHERE coach_number='B1'), 5, 'SIDE_UPPER'),
-((SELECT coach_id FROM coaches WHERE coach_number='B1'), 6, 'LOWER');
+-- Train 12301 (Rajdhani)
+(12301, 'S1', 'SL', 72, 'ACTIVE'),
+(12301, 'B1', '3A', 72, 'ACTIVE'),
+(12301, 'A1', '2A', 54, 'ACTIVE'),
 
--- Coach S1 (SL)
-INSERT INTO seats (coach_id, seat_number, berth_type) VALUES 
-((SELECT coach_id FROM coaches WHERE coach_number='S1'), 1, 'LOWER'),
-((SELECT coach_id FROM coaches WHERE coach_number='S1'), 2, 'MIDDLE'),
-((SELECT coach_id FROM coaches WHERE coach_number='S1'), 3, 'UPPER'),
-((SELECT coach_id FROM coaches WHERE coach_number='S1'), 4, 'SIDE_LOWER'),
-((SELECT coach_id FROM coaches WHERE coach_number='S1'), 5, 'SIDE_UPPER'),
-((SELECT coach_id FROM coaches WHERE coach_number='S1'), 6, 'LOWER');
+-- Train 22691
+(22691, 'S1', 'SL', 72, 'ACTIVE'),
+(22691, 'B1', '3A', 72, 'ACTIVE'),
 
--- 9. Initialize Seat Allocations dynamically for all TrainSchedules and all seats on those trains!
+-- Train 12123
+(12123, 'S1', 'SL', 72, 'ACTIVE'),
+(12123, 'C1', '3A', 72, 'ACTIVE');
+
+-- 8. Bulk Insert Seats Dynamically using generate_series
+-- 72-seat coaches (SL & 3A)
+INSERT INTO seats (coach_id, seat_number, berth_type)
+SELECT c.coach_id, g.num, 
+       CASE 
+           WHEN g.num % 8 IN (1, 4) THEN 'LOWER'::berth_type_enum
+           WHEN g.num % 8 IN (2, 5) THEN 'MIDDLE'::berth_type_enum
+           WHEN g.num % 8 IN (3, 6) THEN 'UPPER'::berth_type_enum
+           WHEN g.num % 8 = 7 THEN 'SIDE_LOWER'::berth_type_enum
+           ELSE 'SIDE_UPPER'::berth_type_enum
+       END
+FROM coaches c
+CROSS JOIN generate_series(1, 72) AS g(num)
+WHERE c.total_seats = 72;
+
+-- 54-seat coaches (2A)
+INSERT INTO seats (coach_id, seat_number, berth_type)
+SELECT c.coach_id, g.num, 
+       CASE 
+           WHEN g.num % 6 IN (1, 3) THEN 'LOWER'::berth_type_enum
+           WHEN g.num % 6 IN (2, 4) THEN 'UPPER'::berth_type_enum
+           WHEN g.num % 6 = 5 THEN 'SIDE_LOWER'::berth_type_enum
+           ELSE 'SIDE_UPPER'::berth_type_enum
+       END
+FROM coaches c
+CROSS JOIN generate_series(1, 54) AS g(num)
+WHERE c.total_seats = 54;
+
+-- 48-seat coaches (Chair Exec)
+INSERT INTO seats (coach_id, seat_number, berth_type)
+SELECT c.coach_id, g.num, 'CHAIR'::berth_type_enum
+FROM coaches c
+CROSS JOIN generate_series(1, 48) AS g(num)
+WHERE c.total_seats = 48;
+
+-- 24-seat coaches (1A)
+INSERT INTO seats (coach_id, seat_number, berth_type)
+SELECT c.coach_id, g.num, 
+       CASE WHEN g.num % 2 = 1 THEN 'LOWER'::berth_type_enum ELSE 'UPPER'::berth_type_enum END
+FROM coaches c
+CROSS JOIN generate_series(1, 24) AS g(num)
+WHERE c.total_seats = 24;
+
+-- 9. Initialize Seat Allocations dynamically for all TrainSchedules and all seats!
 INSERT INTO seat_allocations (schedule_id, seat_id, booking_status)
 SELECT ts.schedule_id, s.seat_id, 'AVAILABLE'
 FROM train_schedules ts
 JOIN coaches c ON ts.train_no = c.train_no
 JOIN seats s ON c.coach_id = s.coach_id;
-
 
 -- ============================================================
 -- 21. FINISH TRANSACTION
