@@ -23,7 +23,7 @@ if not exist lib\postgresql-42.7.3.jar (
 
 :: Compile java files
 echo Compiling source files...
-javac -d bin -cp "lib/*;src" src/rmi/*.java src/server/*.java src/client/*.java src/com/tatkal/client/*.java
+javac -d bin -cp "lib/*;src" src/rmi/*.java src/clock/*.java src/server/*.java src/client/*.java src/com/tatkal/client/*.java
 if errorlevel 1 (
     echo ERROR: Compilation failed!
     pause

@@ -45,3 +45,24 @@ The following updates and files were created to implement server-side thread poo
 | [compile.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/compile.bat) | Updated compilation script to compile `src/com/tatkal/client/*.java`. |
 | [run_concurrency_test.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/run_concurrency_test.bat) | Execution script to run the concurrency test suite on Windows. |
 | [README.md](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/README.md) | Comprehensive project README containing About section, Experiment 1 (RPC/RMI), Experiment 2 (Multithreading & Database Concurrency), setup guides, execution commands, and repository structure overview. |
+
+---
+
+## Experiment 3: Clock Algorithms (Cristian's Physical Sync & Lamport Logical Clock)
+**Date:** 2026-08-18
+
+The following files were created and configured to implement Cristian's Algorithm for physical clock synchronization and Lamport Logical Clock for event ordering across logical nodes (Mumbai, Delhi, Chennai).
+
+| File Path | Description |
+|---|---|
+| [src/clock/PhysicalClock.java](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/src/clock/PhysicalClock.java) | Thread-safe simulated physical clock supporting initial offsets (+5000 ms Mumbai, +10000 ms Delhi, +1000 ms Chennai) and Cristian algorithm adjustments. |
+| [src/clock/LogicalClock.java](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/src/clock/LogicalClock.java) | Thread-safe Lamport Logical Clock implementation supporting Rule 1/2 (`increment`) and Rule 3 (`updateFromRemote`: `max(L, R) + 1`). |
+| [src/clock/DistributedNode.java](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/src/clock/DistributedNode.java) | Encapsulates logical node identity, physical/logical clock instances, Cristian's RTT calculation (`T0`, `ServerTime`, `T1`, `RTT`, `RTT/2`, `Adjustment`), ±100 ms window validation, and Lamport message handling. |
+| [src/rmi/ClockMessage.java](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/src/rmi/ClockMessage.java) | Serializable DTO carrying sender node ID, logical timestamp, physical timestamp, and event description over RMI. |
+| [src/rmi/BookingService.java](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/src/rmi/BookingService.java) | Remote service interface updated with `getServerPhysicalTime()` and `processClockSyncMessage()`. |
+| [src/server/BookingServiceImpl.java](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/src/server/BookingServiceImpl.java) | Service implementation providing Mumbai time server timestamps and server logical clock updating. |
+| [src/client/ClockAlgorithmsDemo.java](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/src/client/ClockAlgorithmsDemo.java) | Main experiment runner demonstrating Section A (Cristian physical sync), Section B (Lamport logical ordering), and Section C (Tatkal booking event with dual timestamps). |
+| [src/client/BookingClient.java](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/src/client/BookingClient.java) | Updated interactive CLI dashboard with Option 6 (`Synchronize Clock & View Timestamps (Exp 3)`) and integrated dual physical/logical clock timestamp display on booking confirmation receipts. |
+| [compile.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/compile.bat) | Updated compilation script to include `src/clock/*.java`. |
+| [run_clock_demo.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/run_clock_demo.bat) | Batch execution script to run the Clock Algorithms experiment on Windows. |
+

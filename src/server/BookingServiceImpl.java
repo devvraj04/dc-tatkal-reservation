@@ -765,6 +765,27 @@ public class BookingServiceImpl extends UnicastRemoteObject implements BookingSe
         return history;
     }
 
+    // 7. Cristian's Algorithm: Return Mumbai Time Server physical timestamp
+    private final clock.PhysicalClock mumbaiPhysicalClock = new clock.PhysicalClock("Mumbai", 5000L);
+    private final clock.LogicalClock serverLogicalClock = new clock.LogicalClock(0);
+
+    @Override
+    public long getServerPhysicalTime() throws RemoteException {
+        // Simulate minor server processing time
+        try { Thread.sleep(5); } catch (InterruptedException ignored) {}
+        return mumbaiPhysicalClock.getTimeMillis();
+    }
+
+    @Override
+    public rmi.ClockMessage processClockSyncMessage(rmi.ClockMessage message) throws RemoteException {
+        if (message != null) {
+            serverLogicalClock.updateFromRemote(message.getLogicalTimestamp());
+        }
+        serverLogicalClock.increment();
+        return new rmi.ClockMessage("Mumbai", serverLogicalClock.getValue(), mumbaiPhysicalClock.getTimeMillis(), 
+                "Acknowledge event from " + (message != null ? message.getSenderNode() : "Client"));
+    }
+
     // Helper classes for transaction locking representation
     private static class LockedSeat {
         long allocationId;

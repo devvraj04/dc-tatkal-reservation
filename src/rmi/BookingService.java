@@ -23,4 +23,10 @@ public interface BookingService extends Remote {
     
     // 6. Retrieve booking history for a user
     List<BookingHistoryItem> getBookingHistory(long userId) throws RemoteException;
+    
+    // 7. Cristian's Algorithm: Retrieve server physical clock timestamp (Mumbai time server)
+    long getServerPhysicalTime() throws RemoteException;
+    
+    // 8. Clock sync message exchange for distributed nodes
+    ClockMessage processClockSyncMessage(ClockMessage message) throws RemoteException;
 }

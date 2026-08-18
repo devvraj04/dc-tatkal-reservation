@@ -135,3 +135,47 @@ To simulate realistic "Tatkal Opening" race conditions where many users click "B
   - Population of 10 stations, 5 trains, 30 journey schedules (2026-08-15 to 2026-08-20), and dynamic seat generation (72-seat SL/3A coaches, 54-seat 2A coaches, 48-seat Chair Exec, 24-seat 1A) using PostgreSQL `generate_series`.
   - Generates 1,000+ physical seats and 10,000+ date-specific `seat_allocations` to stress-test high concurrency and edge cases.
 
+---
+
+## Experiment 3: Clock Synchronization & Logical Event Ordering
+**Date:** 2026-08-18
+
+### 1. Physical Clock Synchronization — Cristian's Algorithm
+- **Nodes**: Mumbai (Time Server, +5000 ms offset), Delhi (+10000 ms offset), Chennai (+1000 ms offset).
+- **Formula**:
+  - $T_0$ = local physical time immediately before RMI request
+  - $ServerTime$ = physical time returned by Mumbai server
+  - $T_1$ = local physical time immediately after receiving response
+  - $RTT = T_1 - T_0$
+  - $Estimated\ Network\ Delay = RTT / 2$
+  - $Estimated\ Correct\ Time = ServerTime + (RTT / 2)$
+  - $Adjustment = Estimated\ Correct\ Time - T_1$
+- **Synchronization Window Validation**:
+  - Evaluates $|clientPhysicalTime - serverPhysicalTime| \le 100\text{ ms}$.
+  - Adjusts physical clock offsets dynamically and asserts `WITHIN ±100 ms WINDOW`.
+
+---
+
+### 2. Logical Event Ordering — Lamport Logical Clock
+- **Rules Enforced**:
+  - **Rule 1 (Local Event)**: $L = L + 1$
+  - **Rule 2 (Send Event)**: $L = L + 1$, attach $L$ to `ClockMessage`
+  - **Rule 3 (Receive Event)**: $L = \max(L, R) + 1$ when receiving remote timestamp $R$.
+- **Independence**: Maintained complete separation between physical real-world time (`PhysicalClock`) and logical causality sequence (`LogicalClock`).
+
+---
+
+### 3. Dual-Timestamp Tatkal Booking Event Integration
+Every reservation event carries both independent timestamps:
+- `Node`: Node ID (e.g. `Delhi`)
+- `PNR`: Unique 10-character reservation record
+- `Physical Timestamp`: `2026-08-18 15:38:03.280` (synchronized via Cristian's algorithm)
+- `Lamport Logical Timestamp`: `6` (ordered via Lamport rules)
+
+---
+
+### 4. Interactive CLI Dashboard Integration (`BookingClient.java`)
+- Added Option 6 (`Synchronize Clock & View Timestamps (Exp 3)`) to the logged-in user dashboard menu.
+- Executes Cristian's Algorithm synchronization directly over RMI and outputs calculations ($T_0$, $ServerTime$, $T_1$, $RTT$, $RTT/2$, $Adjustment$, $Window\ Status$).
+- Displays the **DISTRIBUTED CLOCK TIMESTAMPS (EXP 3)** block on Tatkal booking confirmation receipts.
+

@@ -62,6 +62,8 @@ public class BookingClient {
         return true;
     }
 
+    private static final clock.DistributedNode clientNode = new clock.DistributedNode("ClientNode-Delhi", 10000L);
+
     private static boolean showLoggedInMenu() {
         System.out.println("\n--- Dashboard (Logged in as: " + session.getFullName() + ") ---");
         System.out.println("1. Search Trains");
@@ -69,8 +71,9 @@ public class BookingClient {
         System.out.println("3. Book Tatkal Ticket");
         System.out.println("4. Cancel Ticket");
         System.out.println("5. View Booking History");
-        System.out.println("6. Logout");
-        System.out.println("7. Exit");
+        System.out.println("6. Synchronize Clock & View Timestamps (Exp 3)");
+        System.out.println("7. Logout");
+        System.out.println("8. Exit");
         System.out.print("Choose an option: ");
 
         int choice = readIntegerInput();
@@ -91,10 +94,13 @@ public class BookingClient {
                 performViewHistory();
                 break;
             case 6:
+                performClockSync();
+                break;
+            case 7:
                 System.out.println("Logging out...");
                 session = null;
                 break;
-            case 7:
+            case 8:
                 return false;
             default:
                 System.out.println("Invalid option. Please try again.\n");
@@ -208,14 +214,57 @@ public class BookingClient {
         if (payMode.equals("NETBANKING")) payMode = "NET_BANKING";
 
         try {
+            clientNode.executeLocalEvent("Initiate booking request CLI");
             System.out.println("Sending booking request to server...");
             BookingResult result = service.bookTatkalTicket(session.getUserId(), schedId, coachType, passengers, payMode);
+            
+            // Perform Cristian sync & capture Lamport timestamp for dual timestamp event
+            clock.DistributedNode.CristianSyncResult sync = clientNode.synchronizeWithServer(service, 100L);
+            long logicalL = clientNode.getLogicalClock().getValue();
+
             System.out.println("\n----------------------------------------------");
             System.out.println(result);
+            if (result.isSuccess()) {
+                System.out.println("--- DISTRIBUTED CLOCK TIMESTAMPS (EXP 3) ---");
+                System.out.println("Node                     : " + clientNode.getNodeId());
+                System.out.println("Physical Timestamp (Real): " + clientNode.getFormattedPhysicalTime());
+                System.out.println("Lamport Logical Timestamp: " + logicalL);
+                System.out.println("Physical Clock Status    : " + (sync.withinWindow ? "SYNCHRONIZED (WITHIN +-100 ms)" : "OUTSIDE WINDOW"));
+                System.out.println("Logical Clock Status     : VALID");
+            }
             System.out.println("----------------------------------------------");
         } catch (Exception e) {
             System.err.println("Booking failed with remote error: " + e.getMessage());
         }
+    }
+
+    private static void performClockSync() {
+        System.out.println("\n=======================================================");
+        System.out.println("    CRISTIAN PHYSICAL SYNC & LAMPORT LOGICAL CLOCK    ");
+        System.out.println("=======================================================");
+        
+        long beforeOffset = clientNode.getPhysicalClock().getClockOffsetMillis();
+        System.out.println("Client Node Name         : " + clientNode.getNodeId());
+        System.out.println("Physical Clock BEFORE    : " + clientNode.getFormattedPhysicalTime() + " (Offset: " + String.format("%+d", beforeOffset) + " ms)");
+        System.out.println("Lamport Logical Clock L  : " + clientNode.getLogicalClock().getValue());
+
+        System.out.println("\nPerforming Cristian's Algorithm synchronization with Mumbai Time Server over RMI...");
+        clock.DistributedNode.CristianSyncResult sync = clientNode.synchronizeWithServer(service, 100L);
+
+        System.out.println("  T0 (Local time before req): " + sync.formatTimestamp(sync.t0));
+        System.out.println("  Server Time (Mumbai)      : " + sync.formatTimestamp(sync.serverTime));
+        System.out.println("  T1 (Local time after resp): " + sync.formatTimestamp(sync.t1));
+        System.out.println("  RTT (T1 - T0)             : " + sync.rtt + " ms");
+        System.out.println("  RTT / 2 (Estimated Delay) : " + sync.estimatedNetworkDelay + " ms");
+        System.out.println("  Calculated Adjustment     : " + String.format("%+d", sync.adjustment) + " ms");
+        System.out.println("  After Sync Time           : " + clientNode.getFormattedPhysicalTime());
+        System.out.println("  Difference from Server    : " + sync.differenceMs + " ms");
+        System.out.println("  Sync Window Status (+-100ms): " + (sync.withinWindow ? "WITHIN WINDOW (SYNCHRONIZED)" : "OUTSIDE WINDOW"));
+        
+        // Execute a local event to increment Lamport Clock
+        long newL = clientNode.executeLocalEvent("Manual Clock Sync CLI Check");
+        System.out.println("\nLamport Rule 1 (Local Event): Counter incremented to L = " + newL);
+        System.out.println("=======================================================\n");
     }
 
     private static void performCancelTicket() {

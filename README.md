@@ -21,6 +21,20 @@ An enterprise-grade, distributed 3-tier railway booking application built for **
   2. **PostgreSQL Pessimistic Locking (`FOR UPDATE OF sa SKIP LOCKED`)**: Non-blocking row-level lock scoped exclusively to `seat_allocations` (`OF sa`), allowing concurrent transactions to dynamically claim available seats without waiting on locked rows or locking multi-table `JOIN` dependencies (`coaches`/`seats`).
   3. **Barrier Synchronization Test Suite (`CountDownLatch`)**: Launching 50 concurrent client threads simultaneously over RMI to assert seat uniqueness and zero duplicate allocations (`CONCURRENCY TEST PASSED`).
 
+### 🔹 Experiment 3: Clock Synchronization & Logical Event Ordering
+- **Objective**: Implement physical clock synchronization using **Cristian's Algorithm** and logical event ordering using **Lamport Logical Clocks** across logical distributed nodes (`Mumbai` Time Server, `Delhi`, `Chennai`).
+- **Physical Clock (Cristian's Algorithm)**:
+  - Synchronizes node physical clocks using RTT calculation: $\text{Estimated Correct Time} = \text{ServerTime} + (\text{RTT} / 2)$.
+  - Calculates adjustment: $\text{Adjustment} = \text{Estimated Correct Time} - T_1$.
+  - Validates physical clock alignment against a configurable $\pm 100\text{ ms}$ synchronization window (`WITHIN ±100 ms WINDOW`).
+- **Logical Clock (Lamport Logical Clock)**:
+  - Enforces strict Lamport causal ordering rules:
+    - **Rule 1 (Local Event)**: $L = L + 1$
+    - **Rule 2 (Send Event)**: $L = L + 1$, attach $L$ to `ClockMessage`
+    - **Rule 3 (Receive Event)**: $L = \max(L, R) + 1$ when receiving remote timestamp $R$.
+- **Dual-Timestamp Tatkal Booking Integration**:
+  - Reservation events carry both synchronized physical real-world timestamps and Lamport logical timestamps independently.
+
 ---
 
 ## ⚙️ Prerequisites & Setup
@@ -80,7 +94,13 @@ run_concurrency_test.bat
   run_concurrency_test.bat
   ```
 
-#### 5. Run the Unsafe Race Condition Demo
+#### 5. Run the Clock Algorithms Experiment (Experiment 3)
+Double-click [run_clock_demo.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/run_clock_demo.bat) or run:
+```cmd
+run_clock_demo.bat
+```
+
+#### 6. Run the Unsafe Race Condition Demo
 ```cmd
 java -cp "lib/*;bin" client.UnsafeBookingDemo
 ```
