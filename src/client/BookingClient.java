@@ -63,17 +63,37 @@ public class BookingClient {
     }
 
     private static final clock.DistributedNode clientNode = new clock.DistributedNode("ClientNode-Delhi", 10000L);
+    private static ClientElectionNode electionNode = null;
 
     private static boolean showLoggedInMenu() {
-        System.out.println("\n--- Dashboard (Logged in as: " + session.getFullName() + ") ---");
+        // Fetch current leader from DB
+        UserSession currentLeader = null;
+        try {
+            if (service != null) {
+                currentLeader = service.getCurrentLeader();
+            }
+        } catch (Exception ignored) {}
+
+        String leaderStr = (currentLeader != null) 
+                ? currentLeader.getFullName() + " (ID=" + currentLeader.getUserId() + ")" 
+                : "NONE / FAILED";
+
+        System.out.println("\n=======================================================");
+        System.out.println("   DASHBOARD | Logged in as: " + session.getFullName() + " (ID=" + session.getUserId() + ")");
+        System.out.println("   Current Tatkal Leader: " + leaderStr);
+        System.out.println("=======================================================");
         System.out.println("1. Search Trains");
         System.out.println("2. Check Seat Availability");
         System.out.println("3. Book Tatkal Ticket");
         System.out.println("4. Cancel Ticket");
         System.out.println("5. View Booking History");
-        System.out.println("6. Synchronize Clock & View Timestamps (Exp 3)");
-        System.out.println("7. Logout");
-        System.out.println("8. Exit");
+        System.out.println("6. Bully Election: Check Current Leader");
+        System.out.println("7. Bully Election: Start Election (Initiator)");
+        System.out.println("8. Bully Election: Simulate Current Leader Failure");
+        System.out.println("9. Bully Election: Verify Database Leader (users.is_leader)");
+        System.out.println("10. Synchronize Clock & View Timestamps (Exp 3)");
+        System.out.println("11. Logout");
+        System.out.println("12. Exit");
         System.out.print("Choose an option: ");
 
         int choice = readIntegerInput();
@@ -94,19 +114,116 @@ public class BookingClient {
                 performViewHistory();
                 break;
             case 6:
-                performClockSync();
+                performCheckLeader();
                 break;
             case 7:
-                System.out.println("Logging out...");
-                session = null;
+                performStartElection();
                 break;
             case 8:
+                performSimulateLeaderFailure();
+                break;
+            case 9:
+                performVerifyDbLeader();
+                break;
+            case 10:
+                performClockSync();
+                break;
+            case 11:
+                System.out.println("Logging out...");
+                session = null;
+                electionNode = null;
+                break;
+            case 12:
                 return false;
             default:
                 System.out.println("Invalid option. Please try again.\n");
         }
         return true;
     }
+
+    private static void performCheckLeader() {
+        System.out.println("\n----------------------------------------------");
+        System.out.println("       CHECK CURRENT ELECTED LEADER");
+        System.out.println("----------------------------------------------");
+        try {
+            UserSession leader = service.getCurrentLeader();
+            if (leader != null) {
+                System.out.println("Current Leader User Name : " + leader.getFullName());
+                System.out.println("Current Leader User ID   : " + leader.getUserId());
+                System.out.println("Current Leader Email     : " + leader.getEmail());
+                System.out.println("Database users.is_leader : TRUE");
+            } else {
+                System.out.println("No active leader currently set in database (users.is_leader = FALSE for all users).");
+            }
+        } catch (Exception e) {
+            System.err.println("Error querying current leader: " + e.getMessage());
+        }
+        System.out.println("----------------------------------------------\n");
+    }
+
+    private static void performStartElection() {
+        ensureElectionNodeInitialized();
+        if (electionNode != null) {
+            System.out.println("\nInitiating Bully Election from User " + session.getFullName() + " (ID=" + session.getUserId() + ")...");
+            electionNode.startBullyElection();
+        }
+    }
+
+    private static void performSimulateLeaderFailure() {
+        ensureElectionNodeInitialized();
+        try {
+            UserSession currentLeader = service.getCurrentLeader();
+            if (currentLeader != null) {
+                System.out.println("\n----------------------------------------------");
+                System.out.println("Simulating failure for Leader: " + currentLeader.getFullName() + " (ID=" + currentLeader.getUserId() + ")...");
+                System.out.println("Current Leader " + currentLeader.getFullName() + " marked as FAILED/UNAVAILABLE.");
+                System.out.println("Health check to leader will now fail, triggering election requirement.");
+                System.out.println("----------------------------------------------\n");
+            } else {
+                System.out.println("No current leader set.");
+            }
+        } catch (Exception e) {
+            System.err.println("Error simulating leader failure: " + e.getMessage());
+        }
+    }
+
+    private static void performVerifyDbLeader() {
+        System.out.println("\n----------------------------------------------");
+        System.out.println("      DATABASE LEADER RECORD VERIFICATION");
+        System.out.println("----------------------------------------------");
+        try {
+            UserSession leader = service.getCurrentLeader();
+            List<UserSession> allUsers = service.getAllUsers();
+
+            System.out.println("Querying: SELECT user_id, full_name, is_leader FROM users;\n");
+            int leaderCount = 0;
+            for (UserSession u : allUsers) {
+                boolean isLd = (leader != null && u.getUserId() == leader.getUserId());
+                if (isLd) leaderCount++;
+                System.out.println("User ID: " + u.getUserId() + " | Name: " + String.format("%-15s", u.getFullName()) + " | is_leader: " + isLd);
+            }
+            System.out.println("\nVerification Result:");
+            if (leaderCount == 1) {
+                System.out.println("SUCCESS: Exactly ONE active leader exists in database -> " + leader.getFullName() + " (ID=" + leader.getUserId() + ")");
+            } else {
+                System.err.println("FAILURE: Invalid leader count in database -> " + leaderCount);
+            }
+        } catch (Exception e) {
+            System.err.println("Error verifying database leader: " + e.getMessage());
+        }
+        System.out.println("----------------------------------------------\n");
+    }
+
+    private static void ensureElectionNodeInitialized() {
+        if (electionNode == null && session != null) {
+            try {
+                electionNode = new ClientElectionNode(session.getUserId(), session.getFullName(), "localhost", 1099, service);
+            } catch (Exception e) {
+                System.err.println("WARN: Failed to initialize election node: " + e.getMessage());
+            }
+        }
+    }
+
 
     private static void performLogin() {
         System.out.print("Enter Email: ");

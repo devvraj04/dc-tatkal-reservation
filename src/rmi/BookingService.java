@@ -29,4 +29,14 @@ public interface BookingService extends Remote {
     
     // 8. Clock sync message exchange for distributed nodes
     ClockMessage processClockSyncMessage(ClockMessage message) throws RemoteException;
+
+    // 9. Bully Election: Retrieve current leader from users.is_leader
+    UserSession getCurrentLeader() throws RemoteException;
+
+    // 10. Bully Election: Transactionally update users.is_leader in database
+    boolean updateLeaderInDatabase(long winnerUserId) throws RemoteException;
+
+    // 11. Bully Election: Get list of all registered participating users
+    List<UserSession> getAllUsers() throws RemoteException;
 }
+

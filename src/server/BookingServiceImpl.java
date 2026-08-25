@@ -786,6 +786,108 @@ public class BookingServiceImpl extends UnicastRemoteObject implements BookingSe
                 "Acknowledge event from " + (message != null ? message.getSenderNode() : "Client"));
     }
 
+    // 9. Bully Election: Retrieve current leader from users.is_leader
+    @Override
+    public UserSession getCurrentLeader() throws RemoteException {
+        String query = "SELECT user_id, full_name, email FROM users WHERE is_leader = TRUE AND account_status = 'ACTIVE'";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                long userId = rs.getLong("user_id");
+                String fullName = rs.getString("full_name");
+                String email = rs.getString("email");
+                return new UserSession(userId, fullName, email);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RemoteException("Database error querying current leader: " + e.getMessage());
+        }
+        return null;
+    }
+
+    // 10. Bully Election: Transactionally update users.is_leader in database
+    @Override
+    public boolean updateLeaderInDatabase(long winnerUserId) throws RemoteException {
+        Connection conn = null;
+        try {
+            conn = DBConnection.getConnection();
+            conn.setAutoCommit(false); // Transaction start
+
+            // Reset all users to is_leader = FALSE
+            String resetQuery = "UPDATE users SET is_leader = FALSE";
+            try (PreparedStatement psReset = conn.prepareStatement(resetQuery)) {
+                psReset.executeUpdate();
+            }
+
+            // Set winner to is_leader = TRUE
+            String setWinnerQuery = "UPDATE users SET is_leader = TRUE WHERE user_id = ?";
+            int updatedRows = 0;
+            try (PreparedStatement psWinner = conn.prepareStatement(setWinnerQuery)) {
+                psWinner.setLong(1, winnerUserId);
+                updatedRows = psWinner.executeUpdate();
+            }
+
+            if (updatedRows == 0) {
+                conn.rollback();
+                throw new RemoteException("Failed to update leader: User ID " + winnerUserId + " does not exist in database.");
+            }
+
+            // Verify exactly ONE leader exists
+            String verifyQuery = "SELECT COUNT(*) FROM users WHERE is_leader = TRUE";
+            try (PreparedStatement psVerify = conn.prepareStatement(verifyQuery);
+                 ResultSet rs = psVerify.executeQuery()) {
+                if (rs.next()) {
+                    int leaderCount = rs.getInt(1);
+                    if (leaderCount != 1) {
+                        conn.rollback();
+                        throw new RemoteException("Database integrity failure: expected 1 leader, found " + leaderCount);
+                    }
+                }
+            }
+
+            conn.commit(); // Transaction commit
+            System.out.println("Server DB: Successfully updated leader to User ID " + winnerUserId + " (users.is_leader = TRUE).");
+            return true;
+        } catch (SQLException e) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ignored) {}
+            }
+            e.printStackTrace();
+            throw new RemoteException("Database transaction failed during leader update: " + e.getMessage());
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException ignored) {}
+            }
+        }
+    }
+
+    // 11. Bully Election: Get list of all registered participating users
+    @Override
+    public List<UserSession> getAllUsers() throws RemoteException {
+        List<UserSession> users = new ArrayList<>();
+        String query = "SELECT user_id, full_name, email FROM users WHERE account_status = 'ACTIVE' ORDER BY user_id ASC";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                users.add(new UserSession(
+                    rs.getLong("user_id"),
+                    rs.getString("full_name"),
+                    rs.getString("email")
+                ));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RemoteException("Database error fetching users: " + e.getMessage());
+        }
+        return users;
+    }
+
+
     // Helper classes for transaction locking representation
     private static class LockedSeat {
         long allocationId;

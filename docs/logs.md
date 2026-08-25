@@ -179,3 +179,55 @@ Every reservation event carries both independent timestamps:
 - Executes Cristian's Algorithm synchronization directly over RMI and outputs calculations ($T_0$, $ServerTime$, $T_1$, $RTT$, $RTT/2$, $Adjustment$, $Window\ Status$).
 - Displays the **DISTRIBUTED CLOCK TIMESTAMPS (EXP 3)** block on Tatkal booking confirmation receipts.
 
+---
+
+## Experiment 4: Bully Election Algorithm for Distributed Process Leadership
+**Date:** 2026-08-25
+
+### 1. Core Concept & Distributed Client Mapping
+In this experiment, every logged-in Tatkal user/client participating in the distributed system is treated as an autonomous distributed process.
+- **Process ID Mapping**: The database primary key `users.user_id` serves as the process ID (e.g. User 1 = ID 1, User 2 = ID 2, User 3 = ID 3, User 4 = ID 4). Higher `user_id` values represent higher priority in election.
+- **No Geographical Terminology**: Eliminates server location labels (Mumbai, Delhi, Chennai, Kolkata) for election logic, modeling pure client-to-client process interactions.
+
+---
+
+### 2. Single Persistent Source of Truth (`users.is_leader`) & Transaction Safety
+- **Persistent Leader Column**: Column `users.is_leader` (boolean) in the database maintains the persistent election state.
+- **ACID Transaction Safety**: When a new coordinator is elected, the database update executes atomically:
+  ```sql
+  BEGIN TRANSACTION;
+  UPDATE users SET is_leader = FALSE;
+  UPDATE users SET is_leader = TRUE WHERE user_id = <winnerId>;
+  COMMIT;
+  ```
+- **Integrity Assertion**: Post-election queries assert that `COUNT(*) == 1` for `is_leader = TRUE`, preventing split-brain or duplicate leaders.
+
+---
+
+### 3. Exact Bully Algorithm Variant Implementation & Failed Request Recovery
+- **Single Initiator Execution & Resend Workflow**:
+  1. User 2 sends a `DISTRIBUTED APPLICATION REQUEST` to current leader User 4 (ID 4).
+  2. Leader User 4 fails to respond (`NO ACK RECEIVED FROM LEADER`).
+  3. User 2 detects leader failure and initiates the Bully Election Algorithm.
+  4. User 2 sends `ELECTION REQUEST` RMI calls to higher-ID processes (User 3 and User 4).
+  5. User 3 responds with `ALIVE ACK`. User 4 gives `NO ACK`. Responding processes do **NOT** launch secondary elections.
+  6. User 2 selects the highest active process ID (User 3).
+  7. Winner User 3 updates `users.is_leader = TRUE` in the database.
+  8. Winner User 3 broadcasts `COORDINATOR ANNOUNCEMENT` RMI calls to active clients, receiving `COORDINATOR ACK`.
+  9. **Request Satisfaction**: User 2 automatically re-sends the initially failed `DISTRIBUTED APPLICATION REQUEST` to the NEW LEADER User 3 (ID 3), which processes the request and returns `REQUEST ACK` (`REQUEST SUCCESSFULLY SATISFIED`).
+
+---
+
+### 4. Formal Message Protocol (`REQUEST` / `ACK`)
+- **Process RMI Binding**: Each client exports `ClientElectionService` and registers as `UserClient_<userId>` in the RMI Registry.
+- **Protocol Terminology**:
+  - `DISTRIBUTED APPLICATION REQUEST`: Application operation sent by client to leader.
+  - `REQUEST ACK`: Confirmation returned by active leader upon satisfying request.
+  - `ELECTION REQUEST`: Initiator message to higher-ID candidates.
+  - `ALIVE ACK`: Positive response returned by active higher-ID processes.
+  - `NO ACK`: Returned when a process/leader is failed or unreachable.
+  - `COORDINATOR ANNOUNCEMENT`: Winner broadcast to active client nodes.
+  - `COORDINATOR ACK`: Receipt acknowledgement returned by client nodes to new leader.
+
+
+

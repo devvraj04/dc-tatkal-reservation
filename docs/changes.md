@@ -66,3 +66,21 @@ The following files were created and configured to implement Cristian's Algorith
 | [compile.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/compile.bat) | Updated compilation script to include `src/clock/*.java`. |
 | [run_clock_demo.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/run_clock_demo.bat) | Batch execution script to run the Clock Algorithms experiment on Windows. |
 
+---
+
+## Experiment 4: Bully Election Algorithm for Distributed Process Leadership
+**Date:** 2026-08-25
+
+The following files were created and modified to implement the Bully Election Algorithm across distributed Tatkal user client processes using Java RMI and PostgreSQL transaction control (`users.is_leader`), featuring a single complete lab demonstration with failed request resend and satisfaction workflows using formal `REQUEST` and `ACK` message terminology.
+
+| File Path | Description |
+|---|---|
+| [src/rmi/ClientElectionService.java](file:///c:/Users/Atharv/OneDrive/Desktop/dc-tatkal-reservation/src/rmi/ClientElectionService.java) | Remote RMI interface enabling process-to-process election calls (`receiveElection`, `receiveCoordinator`, `processLeaderRequest`, `isAlive`). |
+| [src/client/ClientElectionNode.java](file:///c:/Users/Atharv/OneDrive/Desktop/dc-tatkal-reservation/src/client/ClientElectionNode.java) | Distributed client process node implementation managing RMI bindings (`UserClient_<userId>`), failure simulation, `sendRequestToLeader` workflow (detecting missing leader ACK, launching election, and re-sending initially failed request to new leader), DB transactional updates, and formatted logs (`ELECTION REQUEST`, `ALIVE ACK`, `COORDINATOR ANNOUNCEMENT`, `COORDINATOR ACK`, `REQUEST ACK`). |
+| [src/client/BullyElectionDemo.java](file:///c:/Users/Atharv/OneDrive/Desktop/dc-tatkal-reservation/src/client/BullyElectionDemo.java) | Single complete evaluation runner executing the lab demonstration scenario (Initial booking request to Leader User 4 fails due to missing ACK -> User 2 initiates Bully Election -> User 3 elected as winner -> DB updated -> COORDINATOR broadcast -> initially failed request re-sent to new leader User 3 and successfully satisfied with `REQUEST ACK`). |
+| [run_election_demo.bat](file:///c:/Users/Atharv/OneDrive/Desktop/dc-tatkal-reservation/run_election_demo.bat) | Batch execution script to run the Bully Election demonstration on Windows (`java -cp "lib/*;bin" client.BullyElectionDemo`). |
+| [src/rmi/BookingService.java](file:///c:/Users/Atharv/OneDrive/Desktop/dc-tatkal-reservation/src/rmi/BookingService.java) | Updated remote interface exposing `getCurrentLeader()`, `updateLeaderInDatabase()`, and `getAllUsers()`. |
+| [src/server/BookingServiceImpl.java](file:///c:/Users/Atharv/OneDrive/Desktop/dc-tatkal-reservation/src/server/BookingServiceImpl.java) | Service implementation providing transaction-safe database leader queries and updates (`UPDATE users SET is_leader = FALSE; UPDATE users SET is_leader = TRUE WHERE user_id = ?`). |
+| [src/client/BookingClient.java](file:///c:/Users/Atharv/OneDrive/Desktop/dc-tatkal-reservation/src/client/BookingClient.java) | Updated interactive CLI dashboard displaying current leader in the header and adding CLI options for leader checking, initiating election, simulating leader failure, and database record verification. |
+
+
