@@ -1,192 +1,131 @@
 # Distributed Tatkal Railway Reservation System
 
-An enterprise-grade, distributed 3-tier railway booking application built for **Sem-5 Distributed Computing (DC)**. This project demonstrates high-concurrency ticket reservation using **Java Remote Method Invocation (RMI)**, **Server Thread Pooling (`ThreadPoolExecutor`)**, and **PostgreSQL Non-Blocking Pessimistic Locking (`FOR UPDATE OF sa SKIP LOCKED`)**, connected to a cloud PostgreSQL database hosted on **Supabase**.
+An enterprise-grade, distributed 3-tier railway booking application built for **Distributed Computing (DC)**. This project demonstrates high-concurrency ticket reservation using **Java Remote Method Invocation (RMI)**, **Server Thread Pooling (`ThreadPoolExecutor`)**, **PostgreSQL Non-Blocking Pessimistic Locking (`FOR UPDATE OF sa SKIP LOCKED`)**, **Distributed Bully Leader Election**, **Distributed Clock Synchronization (Cristian's Algorithm & Lamport Logical Clocks)**, and a modern, sleek **Next.js Web Frontend** using the custom design color palette.
 
 ---
 
-## 📌 Experiments Covered
+## 🎨 Design System & Color Palette
 
-### 🔹 Experiment 1: Remote Procedure Call (RPC) / Java RMI
-- **Objective**: Enable multi-tier client-server communication using Java RMI.
-- **Architecture**: The client CLI application never touches the database directly. It invokes remote procedures (`login`, `searchTrain`, `checkAvailability`, `bookTatkalTicket`, `cancelTicket`, `getBookingHistory`) on the RMI Booking Server.
-- **Features**:
-  - Strongly typed Data Transfer Objects (DTOs) implementing `java.io.Serializable`.
-  - Cloud PostgreSQL integration via Supabase IPv4 connection pooler (`prepareThreshold=0`).
-  - Interactive CLI dashboard with pre-saved passenger profile loading.
-
-### 🔹 Experiment 2: Multithreading & Database Concurrency Control
-- **Objective**: Handle simultaneous high-volume Tatkal ticket booking requests safely without duplicate seat allocations or system deadlocks.
-- **Architecture**:
-  1. **Server-Side Thread Pooling (`ThreadPoolExecutor`)**: Managed pool (8 core, 32 max threads, 100 bounded queue, `CallerRunsPolicy`) executing concurrent booking transactions via `Callable<BookingResult>`.
-  2. **PostgreSQL Pessimistic Locking (`FOR UPDATE OF sa SKIP LOCKED`)**: Non-blocking row-level lock scoped exclusively to `seat_allocations` (`OF sa`), allowing concurrent transactions to dynamically claim available seats without waiting on locked rows or locking multi-table `JOIN` dependencies (`coaches`/`seats`).
-  3. **Barrier Synchronization Test Suite (`CountDownLatch`)**: Launching 50 concurrent client threads simultaneously over RMI to assert seat uniqueness and zero duplicate allocations (`CONCURRENCY TEST PASSED`).
-
-### 🔹 Experiment 3: Clock Synchronization & Logical Event Ordering
-- **Objective**: Implement physical clock synchronization using **Cristian's Algorithm** and logical event ordering using **Lamport Logical Clocks** across logical distributed nodes (`Mumbai` Time Server, `Delhi`, `Chennai`).
-- **Physical Clock (Cristian's Algorithm)**:
-  - Synchronizes node physical clocks using RTT calculation: $\text{Estimated Correct Time} = \text{ServerTime} + (\text{RTT} / 2)$.
-  - Calculates adjustment: $\text{Adjustment} = \text{Estimated Correct Time} - T_1$.
-  - Validates physical clock alignment against a configurable $\pm 100\text{ ms}$ synchronization window (`WITHIN ±100 ms WINDOW`).
-- **Logical Clock (Lamport Logical Clock)**:
-  - Enforces strict Lamport causal ordering rules:
-    - **Rule 1 (Local Event)**: $L = L + 1$
-    - **Rule 2 (Send Event)**: $L = L + 1$, attach $L$ to `ClockMessage`
-    - **Rule 3 (Receive Event)**: $L = \max(L, R) + 1$ when receiving remote timestamp $R$.
-- **Dual-Timestamp Tatkal Booking Integration**:
-  - Reservation events carry both synchronized physical real-world timestamps and Lamport logical timestamps independently.
+The frontend is styled using the specified design palette:
+- **Primary / Action**: Warm Terracotta Amber (`#D9874C`)
+- **Background**: Soft Warm Cream (`#FEFDF0`, `#F0EDD8`)
+- **Secondary / Nature**: Sage Green (`#8FAB7E`)
+- **Accent / Muted**: Light Slate Sage (`#A5BF96`, `#9DB08E`)
+- **Text & Borders**: Rich Deep Bronze (`#3D2B1F`), Warm Sand Border (`#D5C9A8`)
 
 ---
 
-## ⚙️ Prerequisites & Setup
+## 🚀 Quick Start: Running the Frontend & Backend
 
-### Requirements
-- **Java Development Kit (JDK)**: JDK 8 or above (JDK 17, 21, or 23 recommended).
-- **Internet Connection**: Required for connecting to cloud PostgreSQL on Supabase and downloading the JDBC Driver.
-
-### 1. Database Setup
-1. Execute the SQL script [schema/schema.sql](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/schema/schema.sql) in your Supabase SQL Editor or PGAdmin.
-   - Creates 15 normalized tables, indexes, ENUM types, and populates realistic seed data (10 stations, 5 trains, 30 journey schedules, multi-coach compositions, and 1,000+ dynamic seat allocations).
-2. Configure credentials in [db.properties](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/db.properties):
-   ```properties
-   db.url=jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:6543/postgres?prepareThreshold=0
-   db.user=postgres.<your-project-id>
-   db.password=<your_password>
-   ```
-   > [!IMPORTANT]
-   > The `prepareThreshold=0` parameter is mandatory to disable server-side prepared statements and prevent PgBouncer transaction-mode conflicts.
-
----
-
-## 🚀 Compilation & Execution Guide
-
-### Option A: Windows OS
-
-#### 1. Compile the Project
-Double-click [compile.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/compile.bat) or run in Command Prompt:
-```cmd
-compile.bat
+### 1. Launch Next.js Web Frontend
+Double-click [run_frontend.bat](file:///c:/Users/Atharv/OneDrive/Desktop/dc-tatkal-reservation/run_frontend.bat) or run:
+```bash
+cd tatkal-frontend
+npx next start -p 3000
 ```
-*(Automatically downloads `postgresql-42.7.3.jar` into `lib/` and compiles all sources into `bin/`)*
+Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
-#### 2. Run the Booking Server
-Double-click [run_server.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/run_server.bat) or run:
+**Demo Credentials**:
+- **Email**: `devraj@example.com` / `rahul@example.com`
+- **Password**: `password123`
+
+### 2. Launch Java RMI Server (Backend)
+Double-click [run_server.bat](file:///c:/Users/Atharv/OneDrive/Desktop/dc-tatkal-reservation/run_server.bat) or run:
 ```cmd
 run_server.bat
 ```
-*(Binds `TatkalService` and `BookingService` on RMI port `1099`)*
+*(Binds `TatkalService` & `BookingService` on port `1099`)*
 
-#### 3. Run the Interactive Client CLI (Experiment 1)
-Double-click [run_client.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/run_client.bat) or run:
+### 3. Run Java CLI Client
+Double-click [run_client.bat](file:///c:/Users/Atharv/OneDrive/Desktop/dc-tatkal-reservation/run_client.bat) or run:
 ```cmd
 run_client.bat
 ```
 
-#### 4. Run the Multithreading Concurrency Test Suite (Experiment 2)
-Double-click [run_concurrency_test.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/run_concurrency_test.bat) or run:
-```cmd
-run_concurrency_test.bat
-```
-- **Custom Environment Variables**:
-  ```cmd
-  set TEST_CLIENTS=50
-  set TEST_SCHEDULE_ID=1
-  set TEST_COACH_TYPE=SL
-  run_concurrency_test.bat
-  ```
-
-#### 5. Run the Clock Algorithms Experiment (Experiment 3)
-Double-click [run_clock_demo.bat](file:///c:/Users/Devraj/Desktop/Sem5/DC/tatkal-reservation-system/run_clock_demo.bat) or run:
-```cmd
-run_clock_demo.bat
-```
-
-#### 6. Run the Unsafe Race Condition Demo
-```cmd
-java -cp "lib/*;bin" client.UnsafeBookingDemo
-```
-
 ---
 
-### Option B: Linux Ubuntu OS
+## 📌 Features & Experiments Covered
 
-#### 1. Compile the Project
-```bash
-mkdir -p lib bin
-if [ ! -f "lib/postgresql-42.7.3.jar" ]; then
-    curl -L -o lib/postgresql-42.7.3.jar https://jdbc.postgresql.org/download/postgresql-42.7.3.jar
-fi
-javac -d bin -cp "lib/*:src" src/rmi/*.java src/server/*.java src/client/*.java src/com/tatkal/client/*.java
-```
+### 🔹 1. Next.js Web Frontend & REST Bridge
+- **Authentication**: User session management with fast credential auto-fill for testing.
+- **Train Search**: Dynamic station lookup from database, date filtering, and schedule discovery.
+- **Seat Availability**: Real-time breakdown of available vs total seats per coach class (`1A`, `2A`, `3A`, `SL`).
+- **Tatkal Ticket Reservation**: Multi-passenger booking (up to 6 passengers) with pre-saved profile auto-fill, berth preferences, and row-level locking (`FOR UPDATE SKIP LOCKED`).
+- **Ticket Cancellation**: Real-time cancellation charge deduction (₹100/seat) and instant waitlist passenger promotion.
+- **Booking History**: Expandable history cards showing PNR, assigned coach/seat numbers, status badges, and booking timestamp.
+- **Bully Leader Election**: Interactive election initiator, leader failure simulation, and database synchronization (`users.is_leader`).
+- **Clock Algorithms (Exp 3)**: Cristian's algorithm physical sync (±100ms window) and Lamport logical clock message passing.
 
-#### 2. Run the Server
-```bash
-java -cp "lib/*:bin" server.BookingServer
-```
+### 🔹 2. Remote Procedure Call (RPC) / Java RMI
+- Strongly typed Data Transfer Objects (DTOs) implementing `java.io.Serializable`.
+- Local/Remote PostgreSQL integration.
+- Full parity between Java RMI functions and Next.js REST API routes.
 
-#### 3. Run the Client CLI
-```bash
-java -cp "lib/*:bin" client.BookingClient
-```
+### 🔹 3. Multithreading & Database Concurrency Control
+- **Server Thread Pooling (`ThreadPoolExecutor`)**: Managed pool (8 core, 32 max threads, 100 bounded queue, `CallerRunsPolicy`).
+- **Pessimistic Locking (`FOR UPDATE OF sa SKIP LOCKED`)**: Non-blocking row-level lock scoped exclusively to `seat_allocations` (`OF sa`), allowing concurrent transactions to dynamically claim available seats without waiting on locked rows.
+- **Barrier Synchronization Test Suite (`CountDownLatch`)**: 50 concurrent client threads testing seat uniqueness.
 
-#### 4. Run the Concurrency Test Suite
-```bash
-TEST_CLIENTS=50 TEST_SCHEDULE_ID=1 java -cp "lib/*:bin" client.TatkalConcurrencyTest
-```
-
----
-
-## 🌐 Distributed Setup (Testing Across Different Machines)
-
-To connect remote clients to the Booking Server across a Local Area Network (LAN):
-
-1. **Start Server with Hostname IP**:
-   ```cmd
-   java -Djava.rmi.server.hostname=<SERVER_IP_ADDRESS> -cp "lib/*;bin" server.BookingServer
-   ```
-2. **Run Remote Client**:
-   ```cmd
-   java -cp "lib/*;bin" client.BookingClient <SERVER_IP_ADDRESS>
-   ```
+### 🔹 4. Clock Synchronization & Logical Event Ordering
+- **Physical Clock (Cristian's Algorithm)**:
+  - $\text{Estimated Correct Time} = \text{ServerTime} + (\text{RTT} / 2)$.
+  - Validates physical clock alignment against $\pm 100\text{ ms}$ window.
+- **Logical Clock (Lamport Logical Clock)**:
+  - Enforces strict Lamport causal ordering rules ($L = L + 1$, send, receive).
+- **Dual-Timestamp Tatkal Booking**:
+  - Reservation events carry both physical real-world timestamps and Lamport logical timestamps.
 
 ---
 
 ## 📁 Repository Structure Overview
 
 ```
-tatkal-reservation-system/
+dc-tatkal-reservation/
+├── tatkal-frontend/              # Complete Next.js Web Frontend
+│   ├── app/                      # App router pages & API routes
+│   │   ├── api/                  # REST endpoints mirroring Java RMI functions
+│   │   │   ├── availability/     # GET seat availability
+│   │   │   ├── book/             # POST Tatkal ticket booking
+│   │   │   ├── cancel/           # POST Ticket cancellation & waitlist promotion
+│   │   │   ├── clock-sync/       # POST Cristian's algorithm & Lamport clocks
+│   │   │   ├── history/          # GET User booking history
+│   │   │   ├── leader/           # GET/POST Bully leader status & update
+│   │   │   ├── login/            # POST User authentication
+│   │   │   ├── passengers/       # GET Pre-saved user passenger profiles
+│   │   │   ├── schedules/        # GET Active train schedules
+│   │   │   ├── search-trains/    # GET Dynamic train search
+│   │   │   ├── stations/         # GET Dynamic stations list
+│   │   │   └── users/            # GET Participating nodes
+│   │   ├── book/                 # Tatkal booking page
+│   │   ├── cancel/               # Cancellation & refund page
+│   │   ├── clock/                # Interactive clock synchronization page
+│   │   ├── dashboard/            # User overview & quick actions
+│   │   ├── election/             # Interactive Bully election page
+│   │   ├── history/              # Booking history page
+│   │   ├── search/               # Train search page
+│   │   └── page.tsx              # Modern login page
+│   ├── components/               # Navbar & UI primitive components (Card, Button, etc.)
+│   ├── context/                  # AuthContext provider
+│   ├── lib/                      # Database pool & TypeScript types
+│   └── tailwind.config.ts        # Custom palette configuration
 ├── schema/
 │   └── schema.sql                # Complete database schema and seed data
 ├── src/
 │   ├── rmi/                      # Remote interface & Serializable DTOs
-│   │   ├── BookingService.java
-│   │   ├── BookingResult.java
-│   │   ├── CoachAvailability.java
-│   │   ├── PassengerInput.java
-│   │   └── UserSession.java
 │   ├── server/                   # Server & RMI Implementation
-│   │   ├── BookingServer.java     # RMI Registry setup & binding
-│   │   ├── BookingServiceImpl.java# ThreadPoolExecutor & FOR UPDATE OF sa SKIP LOCKED
-│   │   └── DBConnection.java     # JDBC connection manager
-│   ├── client/                   # Client applications
-│   │   ├── BookingClient.java    # Interactive CLI User Dashboard
-│   │   ├── TatkalConcurrencyTest.java # 50-client barrier test harness
-│   │   └── UnsafeBookingDemo.java # Race condition hazard demo
-│   └── com/tatkal/client/
-│       └── TatkalConcurrencyTest.java # Package alias wrapper
-├── docs/
-│   ├── changes.md                # Dated change logs
-│   └── logs.md                   # Technical design & architecture log
-├── db.properties                 # PostgreSQL database configuration
-├── compile.bat                   # Automated compilation batch script
-├── run_server.bat                # Server execution script
-├── run_client.bat                # Client CLI execution script
-└── run_concurrency_test.bat      # Concurrency test execution script
+│   ├── client/                   # Java Client applications & test harnesses
+│   └── clock/                    # Cristian's & Lamport clock implementations
+├── run_frontend.bat              # Script to start Next.js frontend
+├── run_server.bat                # Script to start Java RMI server
+├── run_client.bat                # Script to start Java CLI client
+├── run_clock_demo.bat            # Script to run clock demo
+├── run_election_demo.bat         # Script to run Bully election demo
+└── run_concurrency_test.bat      # Script to run concurrency test harness
 ```
 
 ---
 
 ## 🔑 Default Seed Data Credentials
-- **User Email**: `devraj@example.com`
+- **User Email**: `devraj@example.com` / `rahul@example.com`
 - **Password**: `password123`
 - **Trains Available**: `12951` (Mumbai-Delhi Rajdhani), `12002` (Delhi-Bhopal Shatabdi), `12301` (Howrah Rajdhani), `22691` (Bengaluru Rajdhani), `12123` (Deccan Queen).
-- **Target Schedule**: Schedule ID `1` (Train `12951` on `2026-08-15`).
